@@ -15,7 +15,9 @@ import top.ykong.service.UserService;
 import top.ykong.util.PageEx;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
 
@@ -46,6 +48,16 @@ public class UserController {
         return userService.registerUser(phone_number, password);
     }
 
+    @GetMapping("/getUserOfLogin")
+    public PageEx<User> getUserOfLogin(HttpServletRequest request) {
+        String token = request.getHeader("token");
+        Object user = redisTemplate.opsForValue().get(token);
+        if (user != null) {
+            return new PageEx<>(200, "获取登陆用户成功", (User) user);
+        }
+        return new PageEx<>(400, "获取登录用户失败");
+    }
+
     @PostMapping("/login")
     public Object login(@RequestParam String account, @RequestParam String password, HttpSession session) {
         User user = userService.checkPassword(account, password);
@@ -54,8 +66,8 @@ public class UserController {
             user.setStatus(1);
             userService.updateStatus(user);
             String token = UUID.randomUUID().toString();
-            session.setAttribute("user : " + token, user);
-            redisTemplate.opsForValue().set("user : " + token, user);
+            session.setAttribute(token, user);
+            redisTemplate.opsForValue().set(token, user, Duration.ofMinutes(30));
 
             System.out.println("user : " + token);
             return new PageEx<>(200, "登陆成功");
